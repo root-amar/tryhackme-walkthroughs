@@ -14,6 +14,3 @@ Welcome to your Walkthrough Tracker for **TryHackMe**! Use this document to keep
 ## 🎯 To-Do List
 
 - [ ] Complete your next room!
-
----
-*Tip: Use the `template.md` file to maintain a consistent format for your walkthroughs.*

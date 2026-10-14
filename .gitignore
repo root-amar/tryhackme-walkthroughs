@@ -1,0 +1,31 @@
+# Operating System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.directory
+
+# IDE & Editor Configurations
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# Temporary, Cache & Build Artifacts
+*.log
+*.tmp
+*.bak
+*.old
+__pycache__/
+*.pyc
+
+# Local Sensitive Data & Session State
+cookies.txt
+*.session
+*.pcap
+*.pcapng
+.env
+.env.*
+!template.env
